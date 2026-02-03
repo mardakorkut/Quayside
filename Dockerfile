@@ -12,8 +12,8 @@ RUN apt-get update && apt-get install -y \
 
 # Önce kütüphaneleri yükle (Cache için)
 COPY requirements.txt .
-# Gunicorn yoksa bile garanti olsun diye ekliyoruz
-RUN pip install --no-cache-dir -r requirements.txt && pip install gunicorn
+# Uvicorn FastAPI için gerekli
+RUN pip install --no-cache-dir -r requirements.txt && pip install uvicorn
 
 # Tüm proje dosyalarını içeri at
 COPY . .
