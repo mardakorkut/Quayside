@@ -989,6 +989,11 @@ async function confirmRemoveVessel(mmsi) {
     showToast('Vessel removed from tracked list', 'success');
 }
 
+// Alias for confirmRemoveVessel
+function confirmDeleteVessel(mmsi) {
+    return confirmRemoveVessel(mmsi);
+}
+
 // ==================== NOTES SYSTEM ====================
 
 let currentVesselMMSI = null;
@@ -1909,3 +1914,16 @@ if (document.readyState === 'loading') {
         }
     }, 2000);
 }
+
+// Export functions to global scope for HTML onclick handlers (at end of file after all definitions)
+window.confirmDeleteVessel = confirmDeleteVessel;
+window.toggleVesselSource = toggleVesselSource;
+window.toggleFilter = toggleFilter;
+window.showListView = showListView;
+window.toggleDrawRectangle = toggleDrawRectangle;
+window.searchCurrentView = searchCurrentView;
+window.openVesselModal = openVesselModal;
+window.closeModal = closeModal;
+window.saveNote = saveNote;
+window.deleteNote = deleteNote;
+window.logout = logout;
