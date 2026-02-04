@@ -3,6 +3,10 @@ FastAPI>=0.100.0
 uvicorn[standard]>=0.24.0
 websockets>=12.0
 
+# Database
+sqlalchemy>=2.0.0
+alembic>=1.12.0
+
 # HTTP & Data
 httpx>=0.25.0
 requests>=2.31.0
@@ -10,10 +14,13 @@ requests>=2.31.0
 # Environment
 python-dotenv>=1.0.0
 
+# Security
+cryptography>=41.0.0
+PyJWT>=2.8.0
+passlib>=1.7.4
+bcrypt>=4.0.1
+
 # Development
 pytest>=7.4.0
 black>=23.0.0
-
-# Security
-cryptography>=41.0.0
 
