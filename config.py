@@ -45,9 +45,7 @@ class Settings:
     DEFAULT_MAP_ZOOM = int(os.getenv("DEFAULT_MAP_ZOOM", "4"))
     
     # AIS Data Configuration
-    AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY")
-    if not AISSTREAM_API_KEY:
-        raise ValueError("AISSTREAM_API_KEY not set in .env file")
+    AISSTREAM_API_KEY = os.getenv("AISSTREAM_API_KEY", "")
     
     # Database Configuration (PostgreSQL)
     DATABASE_URL = os.getenv(
