@@ -1257,6 +1257,37 @@
             display: none;
         }
         
+        /* Mobile responsive modals */
+        @media (max-width: 640px) {
+            .modal-content {
+                max-width: 95vw;
+                max-height: 85vh;
+                width: 95vw;
+            }
+            
+            .modal-header h2 {
+                font-size: 1.1rem;
+            }
+            
+            .modal-header {
+                padding: 1rem;
+            }
+            
+            .form-group {
+                margin-bottom: 1rem !important;
+            }
+            
+            .form-group label {
+                font-size: 0.9rem;
+            }
+            
+            .form-group input,
+            .form-group button {
+                font-size: 0.95rem;
+                padding: 0.7rem !important;
+            }
+        }
+        
         /* Mobile Optimized Design */
         @media (max-width: 768px) {
             .header {
@@ -1306,6 +1337,16 @@
                 box-shadow: 4px 0 20px rgba(0,0,0,0.5);
                 background: rgba(13, 17, 23, 0.98);
                 backdrop-filter: blur(20px);
+                padding: 0.8rem !important;
+            }
+            
+            .sidebar-section {
+                margin-bottom: 1.2rem;
+            }
+            
+            .sidebar-section h3 {
+                font-size: 0.9rem;
+                margin-bottom: 0.6rem;
             }
             
             .sidebar.mobile-open {
