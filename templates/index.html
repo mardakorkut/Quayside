@@ -1253,20 +1253,26 @@
         @media (max-width: 768px) {
             .container-fluid {
                 flex-direction: column;
-                height: auto;
-                min-height: calc(100vh - 120px);
+                height: 100vh;
             }
             
             .sidebar {
                 width: 100%;
-                height: auto;
-                max-height: 40vh;
+                height: 50vh;
+                max-height: 50vh;
                 border-right: none;
                 border-bottom: 1px solid rgba(88, 166, 255, 0.15);
+                overflow-y: auto;
             }
             
             .map-container {
-                height: 60vh;
+                height: 50vh !important;
+                width: 100% !important;
+            }
+            
+            #map {
+                height: 100% !important;
+                width: 100% !important;
             }
             
             .header-stats {
