@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>⚓ Quayside - Smart Vessel Tracking</title>
+    <link rel="icon" type="image/svg+xml" href="/static/images/favicon.svg">
+    <title>Quayside - Smart Vessel Tracking</title>
     
     <!-- MapLibre GL JS -->
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/maplibre-gl@4.0.0/dist/maplibre-gl.css" />
@@ -1257,6 +1258,36 @@
             display: none;
         }
         
+        /* Mobile responsive toast notifications */
+        @media (max-width: 640px) {
+            .toast {
+                min-width: 280px !important;
+                padding: 0.8rem 1rem !important;
+                font-size: 0.85rem !important;
+            }
+            
+            .toast.error {
+                min-width: 300px !important;
+                padding: 1rem 1.2rem !important;
+            }
+            
+            .toast-icon {
+                font-size: 1.1rem !important;
+            }
+            
+            .toast-message {
+                font-size: 0.85rem !important;
+            }
+            
+            #toast-container {
+                left: 50% !important;
+                right: auto !important;
+                transform: translateX(-50%);
+                width: calc(100% - 20px);
+                max-width: 350px;
+            }
+        }
+        
         /* Mobile responsive modals */
         @media (max-width: 640px) {
             .modal-content {
@@ -1290,6 +1321,13 @@
         
         /* Mobile Optimized Design */
         @media (max-width: 768px) {
+            /* Show mobile elements */
+            .mobile-menu-btn,
+            .mobile-bottom-nav,
+            .mobile-fab {
+                display: flex !important;
+            }
+            
             .header {
                 padding: 0.8rem 1rem;
                 flex-wrap: wrap;
@@ -1331,13 +1369,15 @@
                 top: 70px;
                 width: 85%;
                 max-width: 320px;
-                height: calc(100vh - 70px);
+                height: calc(100vh - 70px - 60px);
+                bottom: 60px;
                 z-index: 1000;
                 transition: left 0.3s ease;
                 box-shadow: 4px 0 20px rgba(0,0,0,0.5);
                 background: rgba(13, 17, 23, 0.98);
                 backdrop-filter: blur(20px);
                 padding: 0.8rem !important;
+                overflow-y: auto;
             }
             
             .sidebar-section {
@@ -1357,11 +1397,11 @@
             .mobile-menu-btn {
                 display: flex !important;
                 position: fixed;
-                top: 80px;
-                left: 10px;
+                top: 140px;
+                left: 15px;
                 z-index: 999;
-                width: 48px;
-                height: 48px;
+                width: 50px;
+                height: 50px;
                 border-radius: 50%;
                 background: linear-gradient(135deg, #58a6ff 0%, #3fb950 100%);
                 border: none;
@@ -1416,10 +1456,10 @@
             .mobile-fab {
                 display: flex !important;
                 position: fixed;
-                bottom: 80px;
+                bottom: 90px;
                 right: 15px;
-                width: 56px;
-                height: 56px;
+                width: 54px;
+                height: 54px;
                 border-radius: 50%;
                 background: linear-gradient(135deg, #58a6ff 0%, #3fb950 100%);
                 border: none;
@@ -1427,7 +1467,7 @@
                 align-items: center;
                 justify-content: center;
                 cursor: pointer;
-                font-size: 1.5rem;
+                font-size: 1.4rem;
                 color: white;
                 z-index: 800;
             }
@@ -1440,6 +1480,20 @@
             .user-menu button {
                 padding: 0.5rem 0.8rem;
                 font-size: 0.85rem;
+            }
+            
+            .user-name {
+                font-size: 0.75rem !important;
+                max-width: 120px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+            
+            .user-avatar {
+                width: 32px !important;
+                height: 32px !important;
+                font-size: 0.9rem !important;
             }
         }
             
@@ -1591,6 +1645,43 @@
             font-weight: 500;
             text-align: right;
         }
+
+        /* Mobile: compact vessel popup */
+        @media (max-width: 640px) {
+            .maplibregl-popup-content {
+                min-width: 220px !important;
+                max-width: 260px !important;
+            }
+
+            .vessel-popup {
+                padding: 0.9rem;
+            }
+
+            .vessel-popup h3 {
+                font-size: 1rem;
+                margin-bottom: 0.7rem;
+                padding-bottom: 0.6rem;
+            }
+
+            .popup-details {
+                gap: 0.4rem;
+            }
+
+            .popup-details p {
+                font-size: 0.8rem;
+                padding: 0.35rem 0;
+            }
+
+            .popup-details p strong {
+                font-size: 0.75rem;
+                min-width: 80px;
+            }
+
+            .maplibregl-popup-close-button {
+                font-size: 18px !important;
+                padding: 6px !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -1599,9 +1690,9 @@
         <i class="fas fa-bars"></i>
     </button>
 
-    <!-- Mobile FAB for Draw -->
+    <!-- Mobile FAB for Area Draw -->
     <button class="mobile-fab" style="display: none;" onclick="toggleDrawRectangle()">
-        <i class="fas fa-draw-polygon"></i>
+        <i class="fas fa-vector-square"></i>
     </button>
 
     <!-- Header -->
@@ -1634,7 +1725,7 @@
     <div class="container-fluid">
         <!-- Sidebar -->
         <div class="sidebar">
-            <div class="sidebar-section">
+            <div class="sidebar-section search-section" id="search-section">
                 <h3>🔍 Search Vessels</h3>
                 <div class="search-form">
                     <input type="text" id="search-input" placeholder="Ship name or MMSI..." onkeypress="if(event.key==='Enter') searchVessels()" />
@@ -1660,7 +1751,7 @@
             </div>
             
             <!-- Quick Filters -->
-            <div class="sidebar-section">
+            <div class="sidebar-section filters-section" id="filters-section">
                 <h3>🔍 Quick Filters</h3>
                 
                 <!-- Vessel Status Filters -->
@@ -1732,7 +1823,7 @@
                 </details>
             </div>
             
-                                    <div class="sidebar-section">
+                                    <div class="sidebar-section" id="add-vessel-section">
                                         <h3><i class="fas fa-plus"></i> Add Vessel</h3>
                                         <div class="search-form">
                                             <input type="text" id="mmsi-input" placeholder="Enter vessel name or MMSI" onkeypress="if(event.key === 'Enter') addVesselByMMSI()" />
@@ -1743,7 +1834,7 @@
                                     </div>
 
             
-            <div class="sidebar-section" id="lists-section">
+            <div class="sidebar-section vessels-section" id="vessels-section">
                 <div style="display: flex; gap: 0.5rem; margin-bottom: 0.6rem;">
                     <button id="list-toggle-tracked" class="filter-chip" onclick="showListView('tracked')" style="flex: 1;">
                         <i class="fas fa-star"></i> Tracked
@@ -2017,19 +2108,19 @@
     
     <!-- Mobile Bottom Navigation -->
     <div class="mobile-bottom-nav" style="display: none;">
-        <div class="mobile-nav-item active" onclick="showMobileView('map')">
+        <div class="mobile-nav-item active" data-view="map" onclick="showMobileView('map')">
             <i class="fas fa-map"></i>
             <span>Map</span>
         </div>
-        <div class="mobile-nav-item" onclick="showMobileView('vessels')">
+        <div class="mobile-nav-item" data-view="add-vessel" onclick="showMobileView('add-vessel')">
             <i class="fas fa-ship"></i>
             <span>Vessels</span>
         </div>
-        <div class="mobile-nav-item" onclick="showMobileView('filters')">
+        <div class="mobile-nav-item" data-view="filters" onclick="showMobileView('filters')">
             <i class="fas fa-filter"></i>
             <span>Filters</span>
         </div>
-        <div class="mobile-nav-item" onclick="showMobileView('search')">
+        <div class="mobile-nav-item" data-view="search" onclick="showMobileView('search')">
             <i class="fas fa-search"></i>
             <span>Search</span>
         </div>
@@ -2049,39 +2140,81 @@
     <!-- Mobile Scripts -->
     <script>
         function toggleMobileSidebar() {
-            document.querySelector('.sidebar').classList.toggle('mobile-open');
+            if (typeof cancelDrawIfActive === 'function') {
+                cancelDrawIfActive();
+            }
+            const sidebar = document.querySelector('.sidebar');
+            sidebar.classList.toggle('mobile-open');
+            
+            // Update hamburger icon
+            const menuBtn = document.querySelector('.mobile-menu-btn i');
+            if (sidebar.classList.contains('mobile-open')) {
+                menuBtn.classList.remove('fa-bars');
+                menuBtn.classList.add('fa-times');
+            } else {
+                menuBtn.classList.remove('fa-times');
+                menuBtn.classList.add('fa-bars');
+            }
         }
         
-        function showMobileView(view) {
-            // Update active nav item
+        function setActiveMobileNav(view) {
             document.querySelectorAll('.mobile-nav-item').forEach(item => {
-                item.classList.remove('active');
+                item.classList.toggle('active', item.dataset.view === view);
             });
-            event.target.closest('.mobile-nav-item').classList.add('active');
+        }
+
+        function showMobileView(view) {
+            if (typeof cancelDrawIfActive === 'function') {
+                cancelDrawIfActive();
+            }
+            setActiveMobileNav(view);
             
-            // Open sidebar and scroll to section
             const sidebar = document.querySelector('.sidebar');
-            sidebar.classList.add('mobile-open');
             
             if (view === 'map') {
                 sidebar.classList.remove('mobile-open');
-            } else if (view === 'vessels') {
-                document.querySelector('.vessels-section').scrollIntoView({behavior: 'smooth'});
-            } else if (view === 'filters') {
-                document.querySelector('.filters-section').scrollIntoView({behavior: 'smooth'});
-            } else if (view === 'search') {
-                document.querySelector('.search-section').scrollIntoView({behavior: 'smooth'});
+                // Reset hamburger icon
+                const menuBtn = document.querySelector('.mobile-menu-btn i');
+                if (menuBtn) {
+                    menuBtn.classList.remove('fa-times');
+                    menuBtn.classList.add('fa-bars');
+                }
+            } else {
+                sidebar.classList.add('mobile-open');
+                
+                // Scroll to section with offset for mobile header
+                const section = document.getElementById(`${view}-section`);
+                if (section) {
+                    setTimeout(() => {
+                        section.scrollIntoView({behavior: 'smooth', block: 'start'});
+                    }, 300);
+                }
             }
         }
         
         // Close sidebar when clicking on map on mobile
-        if (window.innerWidth <= 768) {
-            document.addEventListener('click', (e) => {
-                if (e.target.closest('.map-container') && !e.target.closest('.mobile-menu-btn')) {
-                    document.querySelector('.sidebar').classList.remove('mobile-open');
-                }
-            });
-        }
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.innerWidth <= 768) {
+                document.addEventListener('click', (e) => {
+                    if (e.target.closest('.map-container') || e.target.closest('#map')) {
+                        if (!e.target.closest('.mobile-menu-btn') && !e.target.closest('.mobile-fab') && !e.target.closest('.sidebar')) {
+                            const sidebar = document.querySelector('.sidebar');
+                            if (sidebar && sidebar.classList.contains('mobile-open')) {
+                                sidebar.classList.remove('mobile-open');
+                                setActiveMobileNav('map');
+                                
+                                // Reset hamburger icon
+                                const menuBtn = document.querySelector('.mobile-menu-btn i');
+                                if (menuBtn) {
+                                    menuBtn.classList.remove('fa-times');
+                                    menuBtn.classList.add('fa-bars');
+                                }
+                            }
+                        }
+                    }
+                });
+            }
+        });
     </script>
 </body>
 </html>

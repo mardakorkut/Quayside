@@ -172,12 +172,16 @@ function showLoginButton() {
 function showUserMenu() {
     const authSection = document.getElementById('auth-section');
     if (!authSection || !currentUser) return;
+
+    const rawName = currentUser.username || currentUser.email || 'User';
+    const displayName = rawName.includes('@') ? rawName.split('@')[0] : rawName;
+    const avatarInitial = displayName.charAt(0).toUpperCase();
     
     authSection.innerHTML = `
         <div class="user-menu">
             <div class="user-info">
-                <div class="user-avatar">${currentUser.username.charAt(0).toUpperCase()}</div>
-                <span class="user-name">${currentUser.username}</span>
+                <div class="user-avatar">${avatarInitial}</div>
+                <span class="user-name">${displayName}</span>
             </div>
             <button class="btn-logout" onclick="handleLogout()">
                 <i class="fas fa-sign-out-alt"></i>

@@ -13,6 +13,8 @@ let showAllVessels = true;     // Default: show all AIS vessels like MarineTraff
 let aisStreamConnected = false; // Track if AIS stream is collecting data
 let aisWebSocket = null;
 let aisReconnectTimeout = null;
+let currentViewportBounds = null;
+const dynamicBBoxEnabled = true;
 
 let currentListView = 'tracked';
 let lastSearchResults = [];
@@ -220,6 +222,33 @@ function applyFilters(silent = false) {
     updateVesselCount(filteredVessels.length);
 }
 
+function isWithinBounds(vessel, bounds) {
+    if (!bounds) return true;
+    return vessel.latitude >= bounds.minLat &&
+           vessel.latitude <= bounds.maxLat &&
+           vessel.longitude >= bounds.minLon &&
+           vessel.longitude <= bounds.maxLon;
+}
+
+function updateViewportBounds(bounds) {
+    currentViewportBounds = bounds;
+
+    if (!bounds || aisVessels.size === 0) return;
+
+    let removed = 0;
+    for (const [mmsi, vessel] of aisVessels) {
+        if (!isWithinBounds(vessel, bounds)) {
+            aisVessels.delete(mmsi);
+            removed += 1;
+        }
+    }
+
+    if (removed > 0 && showAllVessels) {
+        allVessels = new Map([...myVessels, ...aisVessels]);
+        refreshMapWithFilters();
+    }
+}
+
 function getVesselCategory(vessel) {
     // First check ship_category from backend
     const backendCategory = vessel.ship_category;
@@ -275,7 +304,8 @@ function showToast(message, type = 'success', duration = 3000) {
     const icons = {
         success: '✅',
         error: '',
-        warning: '⚠️'
+        warning: '⚠️',
+        info: 'ℹ️'
     };
     
     // Create toast element
@@ -289,7 +319,7 @@ function showToast(message, type = 'success', duration = 3000) {
         `;
     } else {
         toast.innerHTML = `
-            <span class="toast-icon">${icons[type]}</span>
+            <span class="toast-icon">${icons[type] || ''}</span>
             <span class="toast-message">${escapeHtml(message)}</span>
         `;
     }
@@ -336,6 +366,10 @@ function addTestVessel() {
 async function searchVessels() {
     const searchInput = document.getElementById('search-input');
     const searchTerm = searchInput.value.trim();
+
+    if (isDrawingRectangle) {
+        toggleDrawRectangle();
+    }
 
     if (!searchTerm) {
         showToast('Please enter a ship name or MMSI', 'warning');
@@ -1363,9 +1397,12 @@ async function clearAllVessels() {
 
 // ==================== AREA SEARCH FUNCTIONS ====================
 
-async function searchCurrentView() {
+async function searchCurrentView(options = {}) {
+    const { silent = false } = options;
     if (!map) {
-        showToast('Map not initialized', 'error');
+        if (!silent) {
+            showToast('Map not initialized', 'error');
+        }
         return;
     }
     
@@ -1375,7 +1412,7 @@ async function searchCurrentView() {
     const maxLat = bounds.getNorth();
     const maxLon = bounds.getEast();
     
-    searchInBoundingBox(minLat, minLon, maxLat, maxLon, 'current view');
+    searchInBoundingBox(minLat, minLon, maxLat, maxLon, 'current view', { silent });
 }
 
 async function quickRegion(regionKey) {
@@ -1431,12 +1468,21 @@ function toggleDrawRectangle() {
     }
 }
 
+function cancelDrawIfActive() {
+    if (isDrawingRectangle) {
+        toggleDrawRectangle();
+    }
+}
+
 function enableRectangleDrawing() {
     // Add handlers directly to map container
     const mapCanvas = map.getCanvas();
     mapCanvas.addEventListener('mousedown', onRectangleMouseDown);
     mapCanvas.addEventListener('mousemove', onRectangleMouseMove);
     mapCanvas.addEventListener('mouseup', onRectangleMouseUp);
+    mapCanvas.addEventListener('touchstart', onRectangleTouchStart, { passive: false });
+    mapCanvas.addEventListener('touchmove', onRectangleTouchMove, { passive: false });
+    mapCanvas.addEventListener('touchend', onRectangleTouchEnd, { passive: false });
 }
 
 function disableRectangleDrawing() {
@@ -1444,12 +1490,39 @@ function disableRectangleDrawing() {
     mapCanvas.removeEventListener('mousedown', onRectangleMouseDown);
     mapCanvas.removeEventListener('mousemove', onRectangleMouseMove);
     mapCanvas.removeEventListener('mouseup', onRectangleMouseUp);
+    mapCanvas.removeEventListener('touchstart', onRectangleTouchStart, { passive: false });
+    mapCanvas.removeEventListener('touchmove', onRectangleTouchMove, { passive: false });
+    mapCanvas.removeEventListener('touchend', onRectangleTouchEnd, { passive: false });
     
     // Remove all rectangle layers if exist
     if (map.getLayer('search-rectangle-glow')) map.removeLayer('search-rectangle-glow');
     if (map.getLayer('search-rectangle')) map.removeLayer('search-rectangle');
     if (map.getLayer('search-rectangle-fill')) map.removeLayer('search-rectangle-fill');
     if (map.getSource('search-rectangle')) map.removeSource('search-rectangle');
+}
+
+function onRectangleTouchStart(e) {
+    if (!isDrawingRectangle) return;
+    e.preventDefault();
+    const touch = e.touches && e.touches[0];
+    if (!touch) return;
+    onRectangleMouseDown({ clientX: touch.clientX, clientY: touch.clientY });
+}
+
+function onRectangleTouchMove(e) {
+    if (!isDrawingRectangle) return;
+    e.preventDefault();
+    const touch = e.touches && e.touches[0];
+    if (!touch) return;
+    onRectangleMouseMove({ clientX: touch.clientX, clientY: touch.clientY });
+}
+
+function onRectangleTouchEnd(e) {
+    if (!isDrawingRectangle) return;
+    e.preventDefault();
+    const touch = e.changedTouches && e.changedTouches[0];
+    if (!touch) return;
+    onRectangleMouseUp({ clientX: touch.clientX, clientY: touch.clientY });
 }
 
 function ensureAllVesselsMode() {
@@ -1605,8 +1678,11 @@ function onRectangleMouseMove(e) {
 }
 
 // Helper function for bounding box search (used by all area search methods)
-async function searchInBoundingBox(minLat, minLon, maxLat, maxLon, areaName) {
-    showToast(`🔍 Searching vessels in ${areaName}...`, 'info', 2000);
+async function searchInBoundingBox(minLat, minLon, maxLat, maxLon, areaName, options = {}) {
+    const { silent = false } = options;
+    if (!silent) {
+        showToast(`🔍 Searching vessels in ${areaName}...`, 'info', 2000);
+    }
     console.log(`🔎 searchInBoundingBox called: ${areaName}`, { minLat, minLon, maxLat, maxLon });
     
     // First try to filter from currently visible vessels (faster)
@@ -1637,7 +1713,9 @@ async function searchInBoundingBox(minLat, minLon, maxLat, maxLon, areaName) {
             const filterNames = Array.from(activeFilters).join(', ');
             message += `\n🔍 Active filters: ${filterNames}`;
         }
-        showToast(message, 'success');
+        if (!silent) {
+            showToast(message, 'success');
+        }
         return;
     }
     
@@ -1657,7 +1735,9 @@ async function searchInBoundingBox(minLat, minLon, maxLat, maxLon, areaName) {
         
         if (filteredVessels.length === 0) {
             updateSearchResultsList([]);
-            showToast(`No vessels found in ${areaName}`, 'warning');
+            if (!silent) {
+                showToast(`No vessels found in ${areaName}`, 'warning');
+            }
             return;
         }
 
@@ -1678,11 +1758,15 @@ async function searchInBoundingBox(minLat, minLon, maxLat, maxLon, areaName) {
             const filterNames = Array.from(activeFilters).join(', ');
             message += `\n🔍 Active filters: ${filterNames}`;
         }
-        showToast(message, 'success');
+        if (!silent) {
+            showToast(message, 'success');
+        }
          
     } catch (error) {
         console.error('Search error:', error);
-        showToast('Error searching vessels', 'error');
+        if (!silent) {
+            showToast('Error searching vessels', 'error');
+        }
     }
 }
 
@@ -1776,7 +1860,14 @@ function connectToAISStream() {
                         draught: vessel.draught
                     });
                     
-                    // Always collect AIS vessels in background
+                    const isTracked = myVessels.has(vessel.mmsi);
+                    if (dynamicBBoxEnabled && currentViewportBounds && !isTracked) {
+                        if (!isWithinBounds(vessel, currentViewportBounds)) {
+                            return;
+                        }
+                    }
+
+                    // Collect AIS vessels in background
                     aisVessels.set(vessel.mmsi, vessel);
                     
                     // Keep tracked vessels up to date with latest AIS data
@@ -1883,7 +1974,7 @@ if (document.readyState === 'loading') {
         setTimeout(() => {
             connectToAISStream();
             if (typeof searchCurrentView === 'function') {
-                searchCurrentView();
+                searchCurrentView({ silent: true });
             }
         }, 2000); // Wait 2 seconds for map to initialize
     });
@@ -1910,7 +2001,7 @@ if (document.readyState === 'loading') {
     setTimeout(() => {
         connectToAISStream();
         if (typeof searchCurrentView === 'function') {
-            searchCurrentView();
+            searchCurrentView({ silent: true });
         }
     }, 2000);
 }
@@ -1921,8 +2012,9 @@ window.toggleVesselSource = toggleVesselSource;
 window.toggleFilter = toggleFilter;
 window.showListView = showListView;
 window.toggleDrawRectangle = toggleDrawRectangle;
+window.cancelDrawIfActive = cancelDrawIfActive;
 window.searchCurrentView = searchCurrentView;
-window.openVesselModal = openVesselModal;
+window.updateViewportBounds = updateViewportBounds;
 window.closeModal = closeModal;
 window.saveNote = saveNote;
 window.deleteNote = deleteNote;

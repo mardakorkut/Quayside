@@ -78,10 +78,10 @@ class AISWebSocketProxy:
             )
             logger.info("✅ Connected to AISStream.io")
             
-            # Subscribe to larger region
+            # Subscribe to global region (all vessels)
             subscription = {
                 'APIKey': self.api_key,
-                'BoundingBoxes': [[[30, -10], [50, 50]]],  # Mediterranean + Europe
+                'BoundingBoxes': [[[-90, -180], [90, 180]]],
                 'FilterMessageTypes': ['PositionReport', 'ShipStaticData']  # Add ShipStaticData
             }
             
