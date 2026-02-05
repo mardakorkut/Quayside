@@ -14,7 +14,13 @@ let aisStreamConnected = false; // Track if AIS stream is collecting data
 let aisWebSocket = null;
 let aisReconnectTimeout = null;
 let currentViewportBounds = null;
-const dynamicBBoxEnabled = true;
+const dynamicBBoxEnabled = false;
+
+const MAX_AIS_CACHE = 20000;
+const AIS_CACHE_TARGET = 15000;
+const MAP_UPDATE_THROTTLE_MS = 1000;
+let lastMapUpdateTime = 0;
+const aisLastSeen = new Map();
 
 let currentListView = 'tracked';
 let lastSearchResults = [];
@@ -234,19 +240,27 @@ function updateViewportBounds(bounds) {
     currentViewportBounds = bounds;
 
     if (!bounds || aisVessels.size === 0) return;
+    pruneAisCache();
+}
 
-    let removed = 0;
-    for (const [mmsi, vessel] of aisVessels) {
-        if (!isWithinBounds(vessel, bounds)) {
-            aisVessels.delete(mmsi);
-            removed += 1;
-        }
-    }
+function pruneAisCache() {
+    if (aisVessels.size <= MAX_AIS_CACHE) return;
 
-    if (removed > 0 && showAllVessels) {
-        allVessels = new Map([...myVessels, ...aisVessels]);
-        refreshMapWithFilters();
+    const entries = Array.from(aisLastSeen.entries());
+    entries.sort((a, b) => a[1] - b[1]);
+
+    const toRemove = Math.max(0, aisVessels.size - AIS_CACHE_TARGET);
+    for (let i = 0; i < toRemove; i += 1) {
+        const [mmsi] = entries[i];
+        aisLastSeen.delete(mmsi);
+        aisVessels.delete(mmsi);
     }
+}
+
+function trackAisVessel(vessel) {
+    aisVessels.set(vessel.mmsi, vessel);
+    aisLastSeen.set(vessel.mmsi, Date.now());
+    pruneAisCache();
 }
 
 function getVesselCategory(vessel) {
@@ -408,9 +422,34 @@ async function searchVessels() {
             if (found) {
                 vessel = found;
                 console.log('✅ Found vessel by name:', vessel);
+            } else {
+                const response = await fetch(`/api/vessels/search?name=${encodeURIComponent(searchTerm)}&limit=20`);
+                if (response.ok) {
+                    const results = await response.json();
+                    if (Array.isArray(results) && results.length > 0) {
+                        results.forEach(trackAisVessel);
+                        allVessels = new Map([...myVessels, ...aisVessels]);
+                        refreshMapWithFilters();
+                        vessel = results[0];
+                        showToast(`Found ${results.length} vessels. Zooming to first.`, 'success', 2000);
+                    }
+                }
             }
         }
         
+        if (!vessel) {
+            if (/^\d+$/.test(searchTerm)) {
+                const response = await fetch(`/api/vessels/${searchTerm}`);
+                if (response.ok) {
+                    const apiVessel = await response.json();
+                    vessel = apiVessel;
+                    trackAisVessel(vessel);
+                    allVessels = new Map([...myVessels, ...aisVessels]);
+                    refreshMapWithFilters();
+                }
+            }
+        }
+
         if (!vessel) {
             showToast(`Vessel "${searchTerm}" not found. Try different search terms or wait for more AIS data.`, 'warning');
             return;
@@ -1743,7 +1782,7 @@ async function searchInBoundingBox(minLat, minLon, maxLat, maxLon, areaName, opt
 
         // Add to aisVessels (live pool), NOT myVessels
         uniqueVessels.forEach(vessel => {
-            aisVessels.set(vessel.mmsi, vessel);
+            trackAisVessel(vessel);
         });
         
         // Update map with new vessels - rebuild allVessels
@@ -1868,7 +1907,7 @@ function connectToAISStream() {
                     }
 
                     // Collect AIS vessels in background
-                    aisVessels.set(vessel.mmsi, vessel);
+                    trackAisVessel(vessel);
                     
                     // Keep tracked vessels up to date with latest AIS data
                     if (myVessels.has(vessel.mmsi)) {
@@ -1878,8 +1917,11 @@ function connectToAISStream() {
                     
                                         // Update map immediately for first batch, then every 10 vessels
                                         // OR if this specific vessel is in tracked list (to update its position live)
-                                        const shouldUpdateMap = aisVessels.size <= 20 || aisVessels.size % 10 === 0 || myVessels.has(vessel.mmsi);
+                                        const now = Date.now();
+                                        const shouldUpdateMap = (aisVessels.size <= 20 || aisVessels.size % 10 === 0 || myVessels.has(vessel.mmsi))
+                                            && (now - lastMapUpdateTime >= MAP_UPDATE_THROTTLE_MS);
                                         if (shouldUpdateMap) {
+                                            lastMapUpdateTime = now;
                                             if (showAllVessels) {
                                                 // Rebuild allVessels and update map
                                                 allVessels = new Map([...myVessels, ...aisVessels]);

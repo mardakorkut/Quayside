@@ -298,14 +298,11 @@ function initializeMap() {
                 type: 'FeatureCollection',
                 features: []
             },
-            cluster: false  // Disabled clustering for better individual vessel visibility
+            cluster: false
         });
         
         // Add vessel layers
-        addTriangleSvgIcon(() => {
-            addVesselTriangleLayer();
-            registerVesselLayerHandlers();
-        });
+        addVesselLayers();
         
         // Add route source and layers
         map.addSource('route', {
@@ -370,6 +367,13 @@ function addTriangleSvgIcon(onReady) {
     if (onReady) onReady();
 }
 
+function addVesselLayers() {
+    addTriangleSvgIcon(() => {
+        addVesselTriangleLayer();
+        registerVesselLayerHandlers();
+    });
+}
+
 function addTriangleIcon() {
     if (map.hasImage('triangle-icon')) return;
 
@@ -401,6 +405,7 @@ function addVesselTriangleLayer() {
         id: 'vessel-points',
         type: 'symbol',
         source: 'vessels',
+        filter: ['!', ['has', 'point_count']],
         layout: {
             'icon-image': [
                 'match',
@@ -557,6 +562,21 @@ function handleMapMove() {
 // Update vessels on map (GeoJSON)
 function updateVesselsOnMap(vessels) {
     if (!map || !map.getSource('vessels')) return;
+
+    const inferShipCategory = (vessel) => {
+        const category = vessel.ship_category;
+        if (category && category !== 'Other') return category;
+
+        const type = (vessel.ship_type || '').toLowerCase();
+        if (type.includes('tanker') || type.includes('oil') || type.includes('lng') || type.includes('lpg')) return 'Tanker';
+        if (type.includes('container')) return 'Container';
+        if (type.includes('cargo') || type.includes('bulk') || type.includes('general')) return 'Cargo';
+        if (type.includes('passenger')) return 'Passenger';
+        if (type.includes('fishing')) return 'Fishing';
+        if (type.includes('tug')) return 'Tug';
+        if (type.includes('pilot')) return 'Pilot';
+        return 'Other';
+    };
     
     const features = vessels.map(vessel => ({
         type: 'Feature',
@@ -578,7 +598,7 @@ function updateVesselsOnMap(vessels) {
             is_ballast: vessel.is_ballast || false,
             is_anchored: vessel.is_anchored || false,
             is_stationary: vessel.is_stationary || false,
-            ship_category: vessel.ship_category || 'Other'
+            ship_category: inferShipCategory(vessel)
         }
     }));
     

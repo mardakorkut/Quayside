@@ -9,6 +9,7 @@ import logging
 from sqlalchemy.orm import Session
 
 from src.services.ais_service import AISStreamService
+from src.services.ais_websocket_service import search_cached_vessels_by_name, get_cached_vessel_by_mmsi
 from src.database import get_db, User, Vessel, Note
 from src.auth import get_current_user
 from src.schemas import VesselCreate, VesselResponse, NoteCreate, NoteResponse
@@ -107,6 +108,16 @@ async def get_vessels_bbox(
         raise HTTPException(status_code=500, detail="Internal server error")
 
 
+@router.get("/vessels/search", response_model=List[VesselResponse])
+async def search_vessels_by_name(
+    name: str = Query(..., min_length=2),
+    limit: int = Query(20, ge=1, le=100)
+):
+    """Search cached AIS vessels by name."""
+    results = search_cached_vessels_by_name(name, limit=limit)
+    return [VesselResponse.model_validate(v) for v in results]
+
+
 @router.get("/vessels/{mmsi}", response_model=VesselResponse)
 async def get_vessel(mmsi: str):
     """
@@ -124,6 +135,10 @@ async def get_vessel(mmsi: str):
                 detail="Invalid MMSI format. Must be 9 digits"
             )
         
+        cached = get_cached_vessel_by_mmsi(mmsi)
+        if cached:
+            return VesselResponse.model_validate(cached)
+
         service = AISStreamService()
         vessel = service.get_vessel_by_mmsi(mmsi)
         
