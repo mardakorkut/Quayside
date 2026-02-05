@@ -6,11 +6,78 @@ Connects to AISStream.io and forwards data to frontend clients
 import asyncio
 import json
 import logging
+import time
 from typing import Set
 import websockets
 from fastapi import WebSocket
 
 logger = logging.getLogger(__name__)
+
+_CACHE_TTL_SECONDS = 2 * 60 * 60
+_CACHE_MAX = 50000
+_CACHE_TARGET = 40000
+_vessel_cache = {}
+_vessel_last_seen = {}
+_vessel_name_lower = {}
+
+
+def _prune_cache(now: float | None = None):
+    current_time = now if now is not None else time.time()
+
+    expired = [mmsi for mmsi, ts in _vessel_last_seen.items() if current_time - ts > _CACHE_TTL_SECONDS]
+    for mmsi in expired:
+        _vessel_cache.pop(mmsi, None)
+        _vessel_last_seen.pop(mmsi, None)
+        _vessel_name_lower.pop(mmsi, None)
+
+    if len(_vessel_cache) <= _CACHE_MAX:
+        return
+
+    ordered = sorted(_vessel_last_seen.items(), key=lambda item: item[1])
+    to_remove = max(0, len(_vessel_cache) - _CACHE_TARGET)
+    for i in range(to_remove):
+        mmsi = ordered[i][0]
+        _vessel_cache.pop(mmsi, None)
+        _vessel_last_seen.pop(mmsi, None)
+        _vessel_name_lower.pop(mmsi, None)
+
+
+def cache_vessel(vessel_data: dict):
+    mmsi = str(vessel_data.get('mmsi') or '')
+    if not mmsi:
+        return
+
+    _vessel_cache[mmsi] = vessel_data
+    _vessel_last_seen[mmsi] = time.time()
+    name = (vessel_data.get('name') or '').lower()
+    if name:
+        _vessel_name_lower[mmsi] = name
+    _prune_cache()
+
+
+def search_cached_vessels_by_name(name: str, limit: int = 20):
+    query = (name or '').strip().lower()
+    if len(query) < 2:
+        return []
+
+    _prune_cache()
+
+    matches = []
+    for mmsi, vessel in _vessel_cache.items():
+        vessel_name = _vessel_name_lower.get(mmsi, '')
+        if vessel_name and query in vessel_name:
+            matches.append((mmsi, vessel))
+
+    matches.sort(key=lambda item: _vessel_last_seen.get(item[0], 0), reverse=True)
+    return [vessel for _, vessel in matches[:limit]]
+
+
+def get_cached_vessel_by_mmsi(mmsi: str):
+    key = str(mmsi or '').strip()
+    if not key:
+        return None
+    _prune_cache()
+    return _vessel_cache.get(key)
 
 class AISWebSocketProxy:
     """Proxy service for AISStream.io WebSocket"""
@@ -78,10 +145,10 @@ class AISWebSocketProxy:
             )
             logger.info("✅ Connected to AISStream.io")
             
-            # Subscribe to global region (all vessels)
+            # Subscribe to regional bbox (reduce load)
             subscription = {
                 'APIKey': self.api_key,
-                'BoundingBoxes': [[[-90, -180], [90, 180]]],
+                'BoundingBoxes': [[[30, -10], [50, 50]]],
                 'FilterMessageTypes': ['PositionReport', 'ShipStaticData']  # Add ShipStaticData
             }
             
@@ -185,7 +252,10 @@ class AISWebSocketProxy:
                         }
                     }
                     
-                                        # Forward to all connected clients
+                    # Cache for server-side name search
+                    cache_vessel(vessel['data'])
+
+                    # Forward to all connected clients
                     disconnected_clients = set()
                     for client in self.clients:
                         try:
