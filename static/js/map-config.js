@@ -133,6 +133,7 @@ class DarkModeControl {
         
         const newStyle = {
             version: 8,
+            glyphs: 'https://demotiles.maplibre.org/font/{fontstack}/{range}.pbf',
             sources: {
                 'map-tiles': {
                     type: 'raster',
@@ -301,8 +302,10 @@ function initializeMap() {
         });
         
         // Add vessel layers
-        addVesselCircleLayer();
-        registerVesselLayerHandlers();
+        addTriangleSvgIcon(() => {
+            addVesselTriangleLayer();
+            registerVesselLayerHandlers();
+        });
         
         // Add route source and layers
         map.addSource('route', {
@@ -317,6 +320,21 @@ function initializeMap() {
         
         // Map move handler for dynamic BBOX
         map.on('moveend', handleMapMove);
+
+        // Initialize dynamic BBOX on load
+        const bounds = map.getBounds();
+        const initialBounds = {
+            minLat: bounds.getSouth(),
+            minLon: bounds.getWest(),
+            maxLat: bounds.getNorth(),
+            maxLon: bounds.getEast()
+        };
+        if (typeof window.updateViewportBounds === 'function') {
+            window.updateViewportBounds(initialBounds);
+        }
+        if (typeof window.searchCurrentView === 'function') {
+            window.searchCurrentView({ silent: true });
+        }
     });
 
     map.on('error', function(error) {
@@ -326,6 +344,57 @@ function initializeMap() {
 
 // ==================== LAYER HELPERS ====================
 
+function addTriangleSvgIcon(onReady) {
+    const makeTriangle = (id, fill, stroke) => {
+        if (map.hasImage(id)) return;
+        const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='32' height='32' viewBox='0 0 32 32'><path d='M16 2 L26 26 Q16 22 6 26 Z' fill='${fill}' stroke='${stroke}' stroke-width='1.6' stroke-linejoin='round' stroke-linecap='round'/></svg>`;
+        const img = new Image();
+        img.onload = () => {
+            map.addImage(id, img, { sdf: false, pixelRatio: 2 });
+        };
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+    };
+
+    // Core categories: bright primary colors
+    makeTriangle('triangle-tanker', '#3b82f6', '#1d4ed8');
+    makeTriangle('triangle-container', '#ef4444', '#b91c1c');
+    makeTriangle('triangle-cargo', '#22c55e', '#15803d');
+
+    // Secondary categories: muted tones
+    makeTriangle('triangle-passenger', '#c47c6a', '#8f5a4d');
+    makeTriangle('triangle-fishing', '#8aa57a', '#5f7454');
+    makeTriangle('triangle-tug', '#a58bb9', '#6f5a86');
+    makeTriangle('triangle-pilot', '#7fa7b3', '#4f6c74');
+    makeTriangle('triangle-other', '#b7838c', '#7a5660');
+
+    if (onReady) onReady();
+}
+
+function addTriangleIcon() {
+    if (map.hasImage('triangle-icon')) return;
+
+    const size = 32;
+    const canvas = document.createElement('canvas');
+    canvas.width = size;
+    canvas.height = size;
+    const ctx = canvas.getContext('2d');
+
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath();
+    ctx.moveTo(size / 2, 4);
+    ctx.lineTo(size - 4, size - 6);
+    ctx.lineTo(4, size - 6);
+    ctx.closePath();
+    ctx.fill();
+
+    ctx.strokeStyle = '#000000';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+
+    map.addImage('triangle-icon', canvas, { sdf: true, pixelRatio: 2 });
+}
+
 function addVesselTriangleLayer() {
     // Marine Traffic style triangle markers with heading direction
     map.addLayer({
@@ -333,24 +402,29 @@ function addVesselTriangleLayer() {
         type: 'symbol',
         source: 'vessels',
         layout: {
-            'icon-image': 'triangle-icon',
-            'icon-size': 1.3,
-            'icon-rotate': ['get', 'heading'],
+            'icon-image': [
+                'match',
+                ['get', 'ship_category'],
+                'Tanker', 'triangle-tanker',
+                'Container', 'triangle-container',
+                'Cargo', 'triangle-cargo',
+                'Passenger', 'triangle-passenger',
+                'Fishing', 'triangle-fishing',
+                'Tug', 'triangle-tug',
+                'Pilot', 'triangle-pilot',
+                'triangle-other'
+            ],
+            'icon-size': 1.05,
+            'icon-rotate': ['coalesce', ['get', 'heading'], 0],
+            'icon-rotation-alignment': 'map',
             'icon-allow-overlap': true,
             'icon-ignore-placement': true
         },
         paint: {
-            'icon-color': [
-                'match',
-                ['get', 'ship_category'],
-                'Tanker', '#4a90e2',
-                'Container', '#ff6b6b',
-                'Cargo', '#2ecc71',
-                '#6c757d'
-            ],
             'icon-opacity': 0.95
         }
     });
+
 }
 
 function addVesselCircleLayer() {
@@ -471,8 +545,12 @@ function handleMapMove() {
         lastBounds = currentBounds;
         console.log('🗺️ Map moved, new bounds:', currentBounds);
         
-        // TODO: Update vessel subscription with new BBOX
-        // This would call backend to filter vessels in viewport
+        if (typeof window.updateViewportBounds === 'function') {
+            window.updateViewportBounds(currentBounds);
+        }
+        if (typeof window.searchCurrentView === 'function') {
+            window.searchCurrentView({ silent: true });
+        }
     }, 500); // 500ms debounce
 }
 
