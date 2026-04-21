@@ -87,6 +87,8 @@ class AISWebSocketProxy:
         self.ais_websocket = None
         self.clients: Set[WebSocket] = set()
         self.is_running = False
+        self.retry_delay_seconds = 5
+        self.max_retry_delay_seconds = 300
         self.ship_static_data = {}  # Cache for ship static data (MMSI -> ShipType, etc.)
         self.message_callback = message_callback
 
@@ -155,10 +157,15 @@ class AISWebSocketProxy:
             await self.ais_websocket.send(json.dumps(subscription))
             logger.info("📡 Subscription sent to AISStream.io")
             
+            # Reset retry delay after successful handshake
+            self.retry_delay_seconds = 5
             return True
             
         except Exception as e:
-            logger.error(f"❌ Failed to connect to AISStream: {e}")
+            if "429" in str(e):
+                logger.error("❌ Failed to connect to AISStream: HTTP 429 (rate limited)")
+            else:
+                logger.error(f"❌ Failed to connect to AISStream: {e}")
             return False
     
     async def forward_ais_data(self):
@@ -297,14 +304,22 @@ class AISWebSocketProxy:
                 if await self.connect_to_aisstream():
                     await self.forward_ais_data()
                     
-                # Reconnect after 5 seconds if connection lost
+                # Reconnect with exponential backoff to avoid hammering upstream
                 if self.is_running:
-                    logger.info("🔄 Reconnecting in 5 seconds...")
-                    await asyncio.sleep(5)
+                    logger.info(f"🔄 Reconnecting in {self.retry_delay_seconds} seconds...")
+                    await asyncio.sleep(self.retry_delay_seconds)
+                    self.retry_delay_seconds = min(
+                        self.retry_delay_seconds * 2,
+                        self.max_retry_delay_seconds,
+                    )
                     
             except Exception as e:
                 logger.error(f"❌ Proxy error: {e}")
-                await asyncio.sleep(5)
+                await asyncio.sleep(self.retry_delay_seconds)
+                self.retry_delay_seconds = min(
+                    self.retry_delay_seconds * 2,
+                    self.max_retry_delay_seconds,
+                )
     
     async def stop(self):
         """Stop the proxy service"""
