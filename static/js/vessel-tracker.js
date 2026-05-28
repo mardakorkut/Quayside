@@ -604,6 +604,11 @@ function updateVesselList(vessels) {
 
 function renderVesselListItems(vessels) {
     return vessels.map(vessel => {
+    const safeMmsi = String(vessel.mmsi ?? '').replace(/[^0-9]/g, '');
+    const safeName = escapeHtml(vessel.name || 'Unknown');
+    const safeSpeed = escapeHtml(String(vessel.speed || 0));
+    const safeLat = escapeHtml(String((vessel.latitude ?? 0).toFixed(4)));
+    const safeLon = escapeHtml(String((vessel.longitude ?? 0).toFixed(4)));
         // Status badges with better icons
         let badges = '';
         if (vessel.is_ballast) badges += '<span style="background:#dc3545;color:white;padding:0.25rem 0.5rem;border-radius:12px;font-size:0.7rem;margin-right:0.35rem;font-weight:600;display:inline-flex;align-items:center;gap:0.25rem;">⚖️ BALLAST</span>';
@@ -635,7 +640,8 @@ function renderVesselListItems(vessels) {
             typeColor = '#6c757d';
         }
         
-        badges += `<span style="background:${typeColor};color:white;padding:0.25rem 0.5rem;border-radius:12px;font-size:0.7rem;margin-right:0.35rem;font-weight:600;display:inline-flex;align-items:center;gap:0.25rem;">${typeIcon} ${typeName.toUpperCase()}</span>`;
+        const safeTypeName = escapeHtml(typeName.toUpperCase());
+        badges += `<span style="background:${typeColor};color:white;padding:0.25rem 0.5rem;border-radius:12px;font-size:0.7rem;margin-right:0.35rem;font-weight:600;display:inline-flex;align-items:center;gap:0.25rem;">${typeIcon} ${safeTypeName}</span>`;
         
         // Check if this vessel is in myVessels (tracked)
         const isTracked = myVessels.has(vessel.mmsi) || myVessels.has(String(vessel.mmsi));
@@ -643,29 +649,29 @@ function renderVesselListItems(vessels) {
         // Only show action buttons for tracked vessels
         const actionButtons = isTracked ? `
             <div class="vessel-actions">
-                <button class="btn-action btn-info" onclick="openInfoModal('${vessel.mmsi}'); event.stopPropagation();" title="View info & notes">
+                <button class="btn-action btn-info" onclick="openInfoModal('${safeMmsi}'); event.stopPropagation();" title="View info & notes">
                     <i class="fas fa-info-circle"></i>
                 </button>
-                <button class="btn-action btn-note" onclick="openNoteModal('${vessel.mmsi}'); event.stopPropagation();" title="Add note">
+                <button class="btn-action btn-note" onclick="openNoteModal('${safeMmsi}'); event.stopPropagation();" title="Add note">
                     <i class="fas fa-plus"></i>
                 </button>
-                <button class="btn-action btn-delete" onclick="confirmRemoveVessel('${vessel.mmsi}'); event.stopPropagation();" title="Remove vessel">
+                <button class="btn-action btn-delete" onclick="confirmRemoveVessel('${safeMmsi}'); event.stopPropagation();" title="Remove vessel">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>` : '';
         
         return `
-        <li class="vessel-item" onclick="selectVessel('${vessel.mmsi}', this)">
+        <li class="vessel-item" onclick="selectVessel('${safeMmsi}', this)">
             <div style="cursor: pointer; flex: 1; min-width: 0;">
-                <div class="vessel-name" style="margin-bottom: 0.5rem;">${vessel.name}${isTracked ? ' <span style="color:#2ea043;font-size:0.8rem;">★</span>' : ''}</div>
+                <div class="vessel-name" style="margin-bottom: 0.5rem;">${safeName}${isTracked ? ' <span style="color:#2ea043;font-size:0.8rem;">★</span>' : ''}</div>
                 <div style="margin-bottom: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.25rem;">${badges}</div>
                 <div class="vessel-info">
-                    <span>MMSI: ${vessel.mmsi}</span>
-                    <span class="vessel-speed">${vessel.speed || 0} kts</span>
+                    <span>MMSI: ${safeMmsi}</span>
+                    <span class="vessel-speed">${safeSpeed} kts</span>
                 </div>
                 <div class="vessel-info">
-                    <span>${vessel.latitude.toFixed(4)}°N</span>
-                    <span>${vessel.longitude.toFixed(4)}°E</span>
+                    <span>${safeLat}°N</span>
+                    <span>${safeLon}°E</span>
                 </div>
             </div>
             ${actionButtons}
@@ -1253,13 +1259,19 @@ function openInfoModal(mmsi) {
     document.getElementById('modal-title').textContent = vessel.name;
     
     // Populate vessel info
+    const safeInfoMmsi = escapeHtml(String(vessel.mmsi || '--'));
+    const safeCallsign = escapeHtml(String(vessel.callsign || '--'));
+    const safeSpeed = escapeHtml(String(vessel.speed || 0));
+    const safeCourse = escapeHtml(String(vessel.course || vessel.heading || 0));
+    const safeDestination = escapeHtml(String(vessel.destination || '--'));
+    const safeType = escapeHtml(String(vessel.ship_type || '--'));
     let infoHTML = `
-        <p><strong>MMSI:</strong> ${vessel.mmsi}</p>
-        <p><strong>Call Sign:</strong> ${vessel.callsign || '--'}</p>
-        <p><strong>Speed:</strong> ${vessel.speed || 0} kts</p>
-        <p><strong>Course:</strong> ${vessel.course || vessel.heading || 0}°</p>
-        <p><strong>Destination:</strong> ${vessel.destination || '--'}</p>
-        <p><strong>Type:</strong> ${vessel.ship_type || '--'}</p>
+        <p><strong>MMSI:</strong> ${safeInfoMmsi}</p>
+        <p><strong>Call Sign:</strong> ${safeCallsign}</p>
+        <p><strong>Speed:</strong> ${safeSpeed} kts</p>
+        <p><strong>Course:</strong> ${safeCourse}°</p>
+        <p><strong>Destination:</strong> ${safeDestination}</p>
+        <p><strong>Type:</strong> ${safeType}</p>
     `;
     
     // Add ETA if available

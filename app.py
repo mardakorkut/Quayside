@@ -8,7 +8,7 @@ import os
 from contextlib import asynccontextmanager
 from typing import Set
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Query, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
@@ -18,6 +18,8 @@ from src.services.ais_service import AISStreamService
 from src.services.websocket_service import WebSocketManager
 from src.services.ais_websocket_service import get_ais_proxy
 from src.routes import vessel_routes, auth_routes
+from src.auth import get_current_user
+from src.database import User
 
 # Setup logging
 logging.basicConfig(level=settings.LOG_LEVEL)
@@ -196,6 +198,7 @@ async def start_tracking(
     min_lon: float = Query(...),
     max_lat: float = Query(...),
     max_lon: float = Query(...),
+    current_user: User = Depends(get_current_user),
 ):
     """
     Admin endpoint to start vessel tracking in a specific area

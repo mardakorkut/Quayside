@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 from typing import Optional
+import os
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 from fastapi import Depends, HTTPException, status
@@ -8,7 +9,9 @@ from sqlalchemy.orm import Session
 from src.database import get_db, User
 
 # Security configuration
-SECRET_KEY = "your-secret-key-change-this-in-production-use-openssl-rand-hex-32"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY or "change-in-production" in SECRET_KEY:
+    raise RuntimeError("SECRET_KEY must be set to a strong value in the environment")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
@@ -39,7 +42,7 @@ async def get_current_user(token: str = Depends(oauth2_scheme), db: Session = De
     import logging
     logger = logging.getLogger(__name__)
     
-    logger.info(f"🔐 Verifying token: {token[:20]}..." if token else "❌ No token provided")
+    logger.info("🔐 Verifying token" if token else "❌ No token provided")
     
     credentials_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
