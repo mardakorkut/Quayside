@@ -9,6 +9,5 @@ python-jose[cryptography]
 passlib
 requests
 websockets
-flask
-flask-socketio
+
 
