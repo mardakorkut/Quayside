@@ -1,90 +1,86 @@
 # Quayside 🚢🌍
 
-Deniz trafiğini ve gemi hareketlerini anlık olarak izlemek, işlemek ve yönetmek için tasarlanmış, yüksek performanslı ve modern bir **FastAPI** tabanlı backend projesidir. Gerçek zamanlı veri akışı, güçlü kimlik doğrulama mekanizmaları ve konteynerleştirilmiş mimarisi ile prodüksiyon ortamına hazır bir yapı sunar.
+A high-performance, modern **FastAPI**-based backend project designed to monitor, process, and manage maritime traffic and vessel movements in real-time. The project offers a production-ready architecture featuring real-time data streaming, robust authentication mechanisms, and a containerized environment.
 
-🔗 **Canlı Demo:** [quayside.onrender.com](https://quayside.onrender.com)
-🟢 **Durum:** Yayında (Production) / Aktif Geliştirme
+🔗 **Live Demo:** [quayside.onrender.com](https://quayside.onrender.com)
+🟢 **Status:** Production / Active Development
 
-## ✨ Öne Çıkan Özellikler
+## ✨ Key Features
 
-* **Yüksek Performanslı REST API:** FastAPI ile asenkron (async/await) mimari üzerine kurulu hızlı endpoint'ler.
-* **Gerçek Zamanlı Veri Akışı:** Gemi konumları ve durum güncellemeleri için **WebSockets** entegrasyonu.
-* **Güvenli Kimlik Doğrulama (Auth):** `JWT (JSON Web Tokens)`, `passlib` (bcrypt) ve `python-jose` ile güçlendirilmiş kullanıcı kayıt/giriş ve yetkilendirme sistemi.
-* **Sağlam Veri Modelleme:** `SQLAlchemy` ORM ve veri doğrulama için en güncel `Pydantic v2` standartları.
-* **Konteynerizasyon & Dağıtım:** Geliştirme ve yayına alma (deployment) süreçlerini standartlaştıran **Docker** ve **Uvicorn** konfigürasyonu.
+* **High-Performance REST API:** Fast endpoints built on an asynchronous (async/await) architecture using FastAPI.
+* **Real-Time Data Streaming:** **WebSockets** integration for live vessel locations and status updates.
+* **Secure Authentication (Auth):** User registration/login and authorization system powered by `JWT (JSON Web Tokens)`, `passlib` (bcrypt), and `python-jose`.
+* **Robust Data Modeling:** `SQLAlchemy` ORM and the latest `Pydantic v2` standards for strict data validation.
+* **Containerization & Deployment:** Standardized development and deployment pipelines using **Docker** and **Uvicorn**.
 
-## 🛠️ Teknik Altyapı ve Teknolojiler
+## 🛠️ Tech Stack & Dependencies
 
-* **Backend Framework:** Python / FastAPI (Tamamen asenkron, yüksek hızlı)
-* **ASGI Sunucu:** Uvicorn
-* **Veritabanı & ORM:** SQLAlchemy
-* **Veri Doğrulama:** Pydantic (v2.10.6)
-* **Güvenlik & Kriptografi:** Python-Jose, Passlib, Cryptography
-* **Real-Time İletişim:** WebSockets
-* **Dağıtım / Altyapı:** Docker, Render, Google Cloud Services
+* **Backend Framework:** Python / FastAPI (Fully async, high-speed)
+* **ASGI Server:** Uvicorn
+* **Database & ORM:** SQLAlchemy
+* **Data Validation:** Pydantic (v2.10.6)
+* **Security & Cryptography:** Python-Jose, Passlib, Cryptography
+* **Real-Time Communication:** WebSockets
+* **Deployment / Infrastructure:** Docker, Render, Google Cloud Services
 
-## 📸 Ekran Görüntüleri
-
-*(Projenin web arayüzü veya API dokümantasyonu görselleri buraya eklenecektir)*
-
-## 📂 Proje Yapısı (Folder Structure)
+## 📂 Folder Structure
 
 ```text
 Quayside/
-├── src/                     # Güvenlik, veritabanı ve auth (kimlik doğrulama) servisleri
-├── static/                  # İstemci tarafı dosyaları (CSS, JS)
-├── templates/               # Frontend şablonları (HTML)
-├── app.py                   # FastAPI uygulama giriş noktası (Entrypoint)
-├── config.py                # Konfigürasyon ve ortam ayarları
-├── Dockerfile               # Docker imaj yapılandırması
-├── .env.example             # Çevresel değişkenlerin şablonu (Gizli veriler hariç)
-├── .gitignore               # Güvenlik için repoya dahil edilmeyen dosyalar
-└── requirements.txt         # Proje bağımlılıkları
+├── src/                     # Core services: Security, database, and authentication
+├── static/                  # Client-side assets (CSS, JS)
+├── templates/               # Frontend templates (HTML)
+├── app.py                   # FastAPI application entrypoint
+├── config.py                # Configuration and environment variables
+├── Dockerfile               # Docker image configuration
+├── .env.example             # Environment variables template (safe to share)
+├── .gitignore               # Excluded files for security and cleanliness
+└── requirements.txt         # Project dependencies
 ```
-*(Not: Sunucuya ve lokale özel `.venv`, `__pycache__`, lokal veritabanı dosyaları ve `.env` gibi kritik dosyalar güvenlik mimarisi gereği repoya dahil edilmemiştir.)*
+*(Note: Critical local-specific files such as `.venv`, `__pycache__`, local database files, and the `.env` file are excluded from the repository following security best practices.)*
 
-## 🚀 Kurulum ve Çalıştırma (Local Setup)
+## 🚀 Local Setup
 
-Projeyi kendi bilgisayarınızda (local) çalıştırmak için aşağıdaki adımları izleyebilirsiniz.
+Follow these steps to run the project on your local machine.
 
-**1. Repoyu Klonlayın ve Sanal Ortam Oluşturun**
+**1. Clone the repository and create a virtual environment:**
 ```bash
 git clone [https://github.com/mardakorkut/Quayside.git](https://github.com/mardakorkut/Quayside.git)
 cd Quayside
 python -m venv .venv
 ```
 
-Windows için:
+For Windows:
 ```bash
 .venv\Scripts\activate
 ```
 
-MacOS/Linux için:
+For MacOS/Linux:
 ```bash
 source .venv/bin/activate
 ```
 
-**2. Gerekli Kütüphaneleri Yükleyin:**
+**2. Install dependencies:**
 ```bash
 pip install -r requirements.txt
 ```
 
-**3. Çevresel Değişkenleri (Environment Variables) Ayarlayın:**
-Proje ana dizininde bulunan `.env.example` dosyasının adını `.env` olarak değiştirin ve içindeki anahtarı kendi sisteminize göre doldurun:
+**3. Configure Environment Variables:**
+Rename the `.env.example` file in the root directory to `.env` and fill in your secure keys:
 ```text
-# .env dosyası
+# .env file
 SECRET_KEY=your_super_secret_key_here
 ```
 
-**4. Uygulamayı Başlatın:**
-FastAPI sunucusunu başlatmak için Uvicorn kullanın:
+**4. Start the Application:**
+Use Uvicorn to spin up the FastAPI server:
 ```bash
 uvicorn app:app --reload
 ```
-Uygulama varsayılan olarak `http://127.0.0.1:8000` adresinde çalışacaktır. API dokümantasyonuna (Swagger UI) `http://127.0.0.1:8000/docs` adresinden erişebilirsiniz.
+The application will run at `http://127.0.0.1:8000` by default. You can access the interactive API documentation (Swagger UI) at `http://127.0.0.1:8000/docs`.
 
-**🐳 Docker ile Çalıştırma (Opsiyonel):**
-Projeyi Docker container üzerinde ayağa kaldırmak için:
+**🐳 Run with Docker (Optional):**
+To run the project inside a Docker container:
 ```bash
 docker build -t quayside-app .
 docker run -p 8000:8000 quayside-app
@@ -92,7 +88,7 @@ docker run -p 8000:8000 quayside-app
 
 ---
 
-## 👨‍💻 Geliştirici
+## 👨‍💻 Developer
 
 **Muhammed Arda Korkut**
 Computer Engineering Student & Backend Developer
